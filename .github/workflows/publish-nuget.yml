@@ -13,6 +13,8 @@ jobs:
   build-and-publish:
     name: Build, Pack & Publish
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # necesario para que GitHub emita el token OIDC que valida NuGet.org (Trusted Publishing)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -43,8 +45,14 @@ jobs:
       - name: Pack
         run: dotnet pack SergioIzq.DotnetKernel.sln --configuration Release --no-build -o ./artifacts
 
+      - name: NuGet login (OIDC → API key temporal)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: sergioizq
+
       - name: Push to NuGet.org
-        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Summary
         run: |
