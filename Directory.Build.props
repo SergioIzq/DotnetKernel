@@ -4,9 +4,9 @@
     <Authors>Sergio Izquierdo</Authors>
     <Company>Sergio Izquierdo</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/sergioizqdev/SergioIzq.DotnetKernel</RepositoryUrl>
+    <RepositoryUrl>https://github.com/SergioIzq/DotnetKernel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/sergioizqdev/SergioIzq.DotnetKernel</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/SergioIzq/DotnetKernel</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
