@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>SergioIzq.Infrastructure.Kernel</PackageId>
+    <Description>Repositorios base (EF Core para escritura, Dapper para lectura optimizada con DTOs), Unit of Work con rollback automático, interceptor de despacho de eventos de dominio, y registro automático de repositorios vía Scrutor. Asume MySQL (LIMIT/OFFSET, DATE_FORMAT) deliberadamente — no es multi-proveedor. Sin dependencia de ASP.NET Core.</Description>
+    <PackageTags>efcore;dapper;repository;unitofwork;kernel;mysql</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Scrutor" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.9" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SergioIzq.Domain.Kernel\SergioIzq.Domain.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

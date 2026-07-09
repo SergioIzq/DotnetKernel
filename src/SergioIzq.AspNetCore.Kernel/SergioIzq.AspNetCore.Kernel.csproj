@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>SergioIzq.AspNetCore.Kernel</PackageId>
+    <Description>Middleware ASP.NET Core (manejo global de excepciones con mapeo de MySqlException, corrección automática de status HTTP para Result fallidos, cabeceras no-cache) y un controlador base para APIs CQRS con MediatR que traduce Result/Error a respuestas HTTP.</Description>
+    <PackageTags>aspnetcore;middleware;mediatr;kernel;mysql</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.6.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SergioIzq.Domain.Kernel\SergioIzq.Domain.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

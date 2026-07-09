@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>SergioIzq.Application.Kernel</PackageId>
+    <Description>Capa de aplicación CQRS genérica: comandos/queries base con MediatR, handlers abstractos Create/Update/Delete/GetById/GetPagedList/Recent/Search con patrón Template Method, registro automático de servicios por marcador, e interfaces cross-cutting (caché, email, almacenamiento de ficheros, hashing de contraseñas).</Description>
+    <PackageTags>cqrs;mediatr;ddd;kernel;clean-architecture</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+    <PackageReference Include="Mapster" Version="10.0.10" />
+    <PackageReference Include="Mapster.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SergioIzq.Domain.Kernel\SergioIzq.Domain.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>
