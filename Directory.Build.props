@@ -13,11 +13,16 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Calcula la versión automáticamente a partir del git height (ver version.json).
+         Cada commit en main produce una versión nueva y publicable sin necesidad de tags. -->
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.91" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
