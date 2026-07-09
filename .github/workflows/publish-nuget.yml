@@ -1,0 +1,57 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  build-and-publish:
+    name: Build, Pack & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" != refs/tags/v* ]]; then
+            echo "❌ Este workflow solo publica desde un tag v*.*.* (ej. v0.1.0). Lanza un push de tag en vez de un workflow_dispatch en una rama."
+            exit 1
+          fi
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore dependencies
+        run: dotnet restore SergioIzq.DotnetKernel.sln
+
+      - name: Build
+        run: dotnet build SergioIzq.DotnetKernel.sln --configuration Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Pack
+        run: dotnet pack SergioIzq.DotnetKernel.sln --configuration Release --no-build -o ./artifacts -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Summary
+        run: |
+          echo "✅ Paquetes publicados en NuGet.org, versión ${{ steps.version.outputs.version }}"
+          ls -la ./artifacts

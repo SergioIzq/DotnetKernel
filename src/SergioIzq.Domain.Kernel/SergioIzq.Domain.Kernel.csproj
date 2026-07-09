@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>SergioIzq.Domain.Kernel</PackageId>
+    <Description>Bloques de dominio genéricos y reutilizables: entidad base con eventos de dominio, patrón Result/Error, paginación y contratos de repositorio/UoW.</Description>
+    <PackageTags>ddd;domain;result;kernel;clean-architecture</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+  </ItemGroup>
+
+</Project>
