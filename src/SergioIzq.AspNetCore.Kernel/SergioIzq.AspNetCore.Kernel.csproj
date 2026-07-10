@@ -8,8 +8,8 @@
 
   <PropertyGroup>
     <PackageId>SergioIzq.AspNetCore.Kernel</PackageId>
-    <Description>Middleware ASP.NET Core (manejo global de excepciones con mapeo de MySqlException, corrección automática de status HTTP para Result fallidos, cabeceras no-cache) y un controlador base para APIs CQRS con MediatR que traduce Result/Error a respuestas HTTP.</Description>
-    <PackageTags>aspnetcore;middleware;mediatr;kernel;mysql</PackageTags>
+    <Description>Middleware ASP.NET Core (manejo global de excepciones con mapeo de MySqlException, corrección automática de status HTTP para Result fallidos, cabeceras no-cache), controlador base para APIs CQRS con MediatR, implementaciones web (UserContext por claims, PasswordHasher de Identity, almacenamiento de ficheros en wwwroot), autenticación JWT completa, y bootstrap de API: Serilog HTML, Kestrel, CORS, JSON, Swagger, compresión, cookies, Hangfire con MySQL y health checks.</Description>
+    <PackageTags>aspnetcore;middleware;mediatr;kernel;mysql;jwt;swagger;hangfire;bootstrap</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,10 +19,25 @@
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="2.6.1" />
     <PackageReference Include="MediatR" Version="14.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.7.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageReference Include="Hangfire.MySqlStorage" Version="2.0.3" />
+    <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="9.0.0" />
+    <!-- Pins transitivos: Hangfire arrastra Newtonsoft.Json 11.x y Hangfire.MySqlStorage
+         arrastra System.Data.SqlClient 4.4.0, ambos con vulnerabilidades conocidas -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SergioIzq.Domain.Kernel\SergioIzq.Domain.Kernel.csproj" />
+    <ProjectReference Include="..\SergioIzq.Application.Kernel\SergioIzq.Application.Kernel.csproj" />
+    <ProjectReference Include="..\SergioIzq.Logging.HtmlFile\SergioIzq.Logging.HtmlFile.csproj" />
   </ItemGroup>
 
 </Project>
