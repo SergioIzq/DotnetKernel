@@ -40,3 +40,6 @@ jobs:
 
       - name: Build
         run: dotnet build SergioIzq.DotnetKernel.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test SergioIzq.DotnetKernel.sln --configuration Release --no-build --verbosity normal

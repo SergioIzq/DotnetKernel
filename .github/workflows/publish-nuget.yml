@@ -42,6 +42,10 @@ jobs:
       - name: Build
         run: dotnet build SergioIzq.DotnetKernel.sln --configuration Release --no-restore
 
+      # GATE: si algún test falla, no se publica nada en NuGet.org
+      - name: Test
+        run: dotnet test SergioIzq.DotnetKernel.sln --configuration Release --no-build --verbosity normal
+
       - name: Pack
         run: dotnet pack SergioIzq.DotnetKernel.sln --configuration Release --no-build -o ./artifacts
 
