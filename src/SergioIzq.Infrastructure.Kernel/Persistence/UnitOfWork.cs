@@ -1,4 +1,5 @@
 using SergioIzq.Domain.Kernel.Interfaces;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -8,24 +9,29 @@ namespace SergioIzq.Infrastructure.Kernel.Persistence;
 /// Unit of Work con gestión de transacciones y rollback automático, compatible con estrategias
 /// de reintento de EF Core (ej. <c>EnableRetryOnFailure</c>).
 ///
-/// A diferencia de la versión original de Kash, este UnitOfWork <b>no</b> despacha eventos de
-/// dominio — eso lo hace únicamente <see cref="Interceptors.DomainEventDispatcherInterceptor"/>,
-/// registrado como interceptor de EF Core, que se dispara solo tras confirmar que el guardado
-/// tuvo éxito. Kash tenía ambos mecanismos activos a la vez, publicando cada evento dos veces
-/// (y el de aquí los publicaba antes de saber si el guardado iba a funcionar) — se corrigió al extraer.
+/// Los eventos de dominio se despachan <b>antes</b> de <c>SaveChangesAsync</c> y dentro de la
+/// transacción: los handlers pueden modificar otras entidades trackeadas (ej. actualizar el saldo
+/// de una cuenta al crear un gasto) y esos cambios se persisten en el mismo guardado de forma
+/// atómica. Los eventos se limpian de las entidades ANTES de publicarse, de modo que un handler
+/// que vuelva a llamar a <see cref="SaveChangesAsync"/> no re-publica los mismos eventos
+/// (sin recursión). <see cref="Interceptors.DomainEventDispatcherInterceptor"/> actúa como red
+/// de seguridad post-guardado para flujos que no pasen por este UnitOfWork.
 /// </summary>
 public class UnitOfWork : IUnitOfWork
 {
     private readonly DbContext _context;
+    private readonly IPublisher _publisher;
     private IDbContextTransaction? _currentTransaction;
 
-    public UnitOfWork(DbContext context)
+    public UnitOfWork(DbContext context, IPublisher publisher)
     {
         _context = context;
+        _publisher = publisher;
     }
 
     /// <summary>
-    /// Guarda los cambios con gestión automática de transacciones y rollback.
+    /// Despacha los eventos de dominio y guarda los cambios con gestión automática
+    /// de transacciones y rollback.
     /// </summary>
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -43,6 +49,8 @@ public class UnitOfWork : IUnitOfWork
 
             try
             {
+                await DispatchDomainEventsAsync(cancellationToken);
+
                 var result = await _context.SaveChangesAsync(cancellationToken);
 
                 if (shouldCommitTransaction && _currentTransaction != null)
@@ -69,6 +77,39 @@ public class UnitOfWork : IUnitOfWork
     }
 
     /// <summary>
+    /// Publica los eventos de dominio pendientes de las entidades trackeadas. Se limpian de las
+    /// entidades antes de publicar: si un handler llama de nuevo a SaveChangesAsync (directa o
+    /// indirectamente) no vuelve a encontrarlos, evitando publicación duplicada o recursión.
+    /// </summary>
+    private async Task DispatchDomainEventsAsync(CancellationToken cancellationToken)
+    {
+        var entitiesWithEvents = _context.ChangeTracker
+            .Entries<IHasDomainEvents>()
+            .Where(e => e.Entity.DomainEvents.Count > 0)
+            .Select(e => e.Entity)
+            .ToList();
+
+        if (entitiesWithEvents.Count == 0)
+        {
+            return;
+        }
+
+        var domainEvents = entitiesWithEvents
+            .SelectMany(e => e.DomainEvents)
+            .ToList();
+
+        foreach (var entity in entitiesWithEvents)
+        {
+            entity.ClearDomainEvents();
+        }
+
+        foreach (var domainEvent in domainEvents)
+        {
+            await _publisher.Publish(domainEvent, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Hace commit de la transacción actual si existe.
     /// </summary>
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
@@ -80,6 +121,7 @@ public class UnitOfWork : IUnitOfWork
 
         try
         {
+            await DispatchDomainEventsAsync(cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             await _currentTransaction.CommitAsync(cancellationToken);
         }

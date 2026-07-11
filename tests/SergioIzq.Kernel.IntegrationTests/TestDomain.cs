@@ -62,12 +62,91 @@ public sealed class TestDbContext : KernelDbContext
             b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
         });
 
+        modelBuilder.Entity<CuentaTest>(b =>
+        {
+            b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
+        });
+
+        modelBuilder.Entity<MovimientoTest>(b =>
+        {
+            b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
+        });
+
         // GastoEntity solo se usa en los tests de Dapper, pero el escaneo por convención
         // de KernelDbContext la registra igualmente (vive en este mismo assembly)
         modelBuilder.Entity<MySql.GastoEntity>(b =>
         {
             b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
         });
+    }
+}
+
+// --- Réplica del patrón de saldo de Kash: un movimiento cuyo handler actualiza otra entidad ---
+
+public sealed record MovimientoCreadoEvent(Guid CuentaId, decimal Importe, bool GuardarDentroDelHandler) : DomainEventBase;
+
+public sealed class CuentaTest : AbsEntity<PedidoId>
+{
+    public decimal Saldo { get; private set; }
+
+    private CuentaTest() : base(default) { } // EF
+
+    public CuentaTest(PedidoId id, decimal saldoInicial) : base(id)
+    {
+        Saldo = saldoInicial;
+    }
+
+    public void Retirar(decimal importe) => Saldo -= importe;
+}
+
+public sealed class MovimientoTest : AbsEntity<PedidoId>
+{
+    public Guid CuentaId { get; private set; }
+    public decimal Importe { get; private set; }
+
+    private MovimientoTest() : base(default) { } // EF
+
+    public MovimientoTest(PedidoId id, Guid cuentaId, decimal importe, bool guardarDentroDelHandler) : base(id)
+    {
+        CuentaId = cuentaId;
+        Importe = importe;
+        AddDomainEvent(new MovimientoCreadoEvent(cuentaId, importe, guardarDentroDelHandler));
+    }
+}
+
+/// <summary>
+/// Réplica de los event handlers de saldo de Kash (GastoCreadoEventHandler /
+/// IngresoCreadoEventHandler): carga la cuenta, resta el importe y, según el evento,
+/// llama o no a SaveChangesAsync dentro del propio handler.
+/// </summary>
+public sealed class SaldoDeCuentaHandler : INotificationHandler<MovimientoCreadoEvent>
+{
+    public static int Ejecuciones;
+
+    private readonly TestDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public SaldoDeCuentaHandler(TestDbContext context, IUnitOfWork unitOfWork)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task Handle(MovimientoCreadoEvent notification, CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref Ejecuciones);
+
+        var cuenta = await _context.Set<CuentaTest>().SingleAsync(cancellationToken);
+        cuenta.Retirar(notification.Importe);
+        _context.Update(cuenta);
+
+        if (notification.GuardarDentroDelHandler)
+        {
+            // Patrón de IngresoCreadoEventHandler: guardar dentro del handler.
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        // Patrón de GastoCreadoEventHandler: no guardar; el dispatch pre-save
+        // garantiza que el SaveChanges en curso persista también este cambio.
     }
 }
 

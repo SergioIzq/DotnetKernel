@@ -8,8 +8,11 @@ namespace SergioIzq.Infrastructure.Kernel.Persistence.Interceptors;
 
 /// <summary>
 /// Interceptor de EF Core que publica los eventos de dominio tras confirmar que el guardado
-/// tuvo éxito (<c>SavedChangesAsync</c>) — es el único punto del kernel que despacha eventos;
-/// <see cref="UnitOfWork"/> deliberadamente no lo hace también (ver su comentario de clase).
+/// tuvo éxito (<c>SavedChangesAsync</c>). Actúa como red de seguridad para guardados que no
+/// pasan por <see cref="UnitOfWork"/> (que despacha antes del guardado y limpia los eventos,
+/// por lo que en ese flujo este interceptor no encuentra nada que publicar). Los eventos se
+/// limpian de las entidades ANTES de publicarse: si un handler provoca otro SaveChanges, la
+/// re-entrada no vuelve a verlos y no hay recursión.
 /// </summary>
 public sealed class DomainEventDispatcherInterceptor : SaveChangesInterceptor
 {
@@ -56,6 +59,11 @@ public sealed class DomainEventDispatcherInterceptor : SaveChangesInterceptor
                     var eventsCopy = new List<IDomainEvent>(domainEvents);
                     entitiesWithEvents.Add((entry.Entity, eventsCopy));
 
+                    // Limpiar ANTES de publicar: si un handler dispara otro SaveChanges,
+                    // la re-entrada de este interceptor no debe re-publicar estos eventos.
+                    var clearMethod = entry.Entity.GetType().GetMethod("ClearDomainEvents");
+                    clearMethod?.Invoke(entry.Entity, null);
+
                     _logger.LogDebug(
                         "Encontrados {EventCount} eventos de dominio en entidad {EntityType}",
                         eventsCopy.Count,
@@ -98,12 +106,6 @@ public sealed class DomainEventDispatcherInterceptor : SaveChangesInterceptor
         if (publishTasks.Count > 0)
         {
             await Task.WhenAll(publishTasks);
-        }
-
-        foreach (var (entity, _) in entitiesWithEvents)
-        {
-            var clearMethod = entity.GetType().GetMethod("ClearDomainEvents");
-            clearMethod?.Invoke(entity, null);
         }
 
         _logger.LogInformation("Eventos de dominio publicados exitosamente");

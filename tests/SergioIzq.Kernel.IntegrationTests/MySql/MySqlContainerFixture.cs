@@ -11,8 +11,7 @@ namespace SergioIzq.Kernel.IntegrationTests.MySql;
 /// </summary>
 public sealed class MySqlContainerFixture : IAsyncLifetime
 {
-    private readonly MySqlContainer _container = new MySqlBuilder()
-        .WithImage("mysql:8.0")
+    private readonly MySqlContainer _container = new MySqlBuilder("mysql:8.0")
         .Build();
 
     public string ConnectionString { get; private set; } = string.Empty;
