@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SergioIzq.Domain.Kernel\SergioIzq.Domain.Kernel.csproj" />
     <ProjectReference Include="..\..\src\SergioIzq.Application.Kernel\SergioIzq.Application.Kernel.csproj" />
+    <ProjectReference Include="..\..\src\SergioIzq.Infrastructure.Kernel\SergioIzq.Infrastructure.Kernel.csproj" />
     <ProjectReference Include="..\..\src\SergioIzq.Logging.HtmlFile\SergioIzq.Logging.HtmlFile.csproj" />
   </ItemGroup>
 

@@ -36,6 +36,26 @@ public abstract class AbsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Envía el request por MediatR y traduce el <see cref="Result{T}"/> a la respuesta HTTP.
+    /// Colapsa el patrón repetido "Send + HandleResult" de cada endpoint a una línea.
+    /// </summary>
+    protected async Task<IActionResult> SendAndHandleAsync<T>(IRequest<Result<T>> request, CancellationToken cancellationToken = default)
+    {
+        var result = await _sender.Send(request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Envía el request por MediatR y traduce el <see cref="Result"/> (sin valor) a la respuesta
+    /// HTTP: 204 No Content si es exitoso, o el error correspondiente.
+    /// </summary>
+    protected async Task<IActionResult> SendAndHandleAsync(IRequest<Result> request, CancellationToken cancellationToken = default)
+    {
+        var result = await _sender.Send(request, cancellationToken);
+        return HandleResult(result);
+    }
+
     /// <summary>Retorna 204 No Content si es exitoso (ideal para Update/Delete), o el error.</summary>
     protected IActionResult HandleResult(Result result)
     {
