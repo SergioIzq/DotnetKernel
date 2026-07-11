@@ -56,8 +56,15 @@ public sealed class TestDbContext : KernelDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configuración mínima del Id (una app real usaría IEntityTypeConfiguration)
+        // Configuración mínima de los Ids (una app real usaría IEntityTypeConfiguration)
         modelBuilder.Entity<Pedido>(b =>
+        {
+            b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
+        });
+
+        // GastoEntity solo se usa en los tests de Dapper, pero el escaneo por convención
+        // de KernelDbContext la registra igualmente (vive en este mismo assembly)
+        modelBuilder.Entity<MySql.GastoEntity>(b =>
         {
             b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
         });
