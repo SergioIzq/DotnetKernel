@@ -143,13 +143,37 @@ public class AbsReadRepositoryMySqlTests
     }
 
     [DockerFact]
-    public async Task GetRecent_OrdenaPorFechaCreacionDescYRespetaElLimite()
+    public async Task GetRecent_SeleccionaPorRecenciaYDevuelveOrdenadoSegunDefaultOrderBy_ConAliasDeTabla()
     {
+        // GastoReadRepository usa alias de tabla ("g") y JOIN ("c"): confirma que el ORDER BY
+        // externo (resuelto desde defaultOrderBy = "g.fecha DESC, g.id DESC" a "Fecha DESC, Id DESC")
+        // no falla al ejecutarse fuera de la subconsulta de selección por recencia.
         var results = (await _repo.GetRecentAsync(_db.UsuarioA, limit: 2)).ToList();
 
         Assert.Equal(2, results.Count);
-        Assert.Equal("Entradas de cine", results[0].Descripcion); // fecha_creacion más reciente
+        // En este dataset "fecha" y "fecha_creacion" coinciden en orden, así que selección y
+        // presentación dan el mismo resultado; la divergencia entre ambos criterios se prueba
+        // en GetRecent_SeleccionaPorRecenciaYPresentaOrdenAlfabetico con un repositorio sin alias.
+        Assert.Equal("Entradas de cine", results[0].Descripcion);
         Assert.Equal("Gasolina", results[1].Descripcion);
+    }
+
+    [DockerFact]
+    public async Task GetRecent_SeleccionaPorRecenciaYPresentaOrdenAlfabetico()
+    {
+        var repo = new ProductoReadRepository(new TestConnectionFactory(_db.ConnectionString));
+
+        // Orden de creación (más antiguo → más reciente): Bebidas, Ferretería, Alimentación, Zapatería.
+        var results = (await repo.GetRecentAsync(_db.UsuarioA, limit: 2)).ToList();
+
+        Assert.Equal(2, results.Count);
+        // Selección por recencia: los 2 más recientes son Zapatería y Alimentación, excluyendo
+        // Ferretería y Bebidas aunque las precedan alfabéticamente.
+        Assert.DoesNotContain(results, dto => dto.Nombre is "Ferretería" or "Bebidas");
+        // Presentación: orden alfabético (defaultOrderBy = "nombre ASC"), inverso al de recencia
+        // con el que se seleccionaron (Zapatería es más reciente que Alimentación).
+        Assert.Equal("Alimentación", results[0].Nombre);
+        Assert.Equal("Zapatería", results[1].Nombre);
     }
 
     [DockerFact]

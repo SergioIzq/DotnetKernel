@@ -93,15 +93,89 @@ public abstract class AbsReadRepository<T, TReadModel, TId> : IReadRepository<T,
     private string GetUserIdColumn() =>
         !string.IsNullOrEmpty(_config.UserIdColumn) ? _config.UserIdColumn : $"{GetTablePrefix()}id_usuario";
 
-    private string GetDefaultOrderBy()
+    private string GetDefaultOrderByExpression() =>
+        !string.IsNullOrEmpty(_config.DefaultOrderBy)
+            ? _config.DefaultOrderBy
+            : $"{GetTablePrefix()}fecha_creacion DESC";
+
+    private string GetDefaultOrderBy() => $"ORDER BY {GetDefaultOrderByExpression()}";
+
+    /// <summary>
+    /// Mapa de expresión cruda de columna (tal y como aparece en <see cref="ReadRepositoryConfiguration.SelectColumns"/>,
+    /// antes del " as ") → su alias de salida. Permite reescribir un <c>ORDER BY</c> escrito en términos de las
+    /// columnas/alias de tabla internos (válidos dentro del FROM/JOIN) para que funcione fuera de una tabla derivada,
+    /// donde solo existen los alias de salida.
+    /// </summary>
+    private Dictionary<string, string> BuildRawExpressionToAliasMap()
     {
-        if (!string.IsNullOrEmpty(_config.DefaultOrderBy))
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (_config.SelectColumns == null)
         {
-            return $"ORDER BY {_config.DefaultOrderBy}";
+            return map;
         }
 
-        return $"ORDER BY {GetTablePrefix()}fecha_creacion DESC";
+        foreach (var selectColumn in _config.SelectColumns)
+        {
+            var asIndex = selectColumn.LastIndexOf(" as ", StringComparison.OrdinalIgnoreCase);
+            if (asIndex < 0)
+            {
+                continue;
+            }
+
+            var rawExpression = selectColumn[..asIndex].Trim();
+            var alias = selectColumn[(asIndex + 4)..].Trim();
+            map[rawExpression] = alias;
+        }
+
+        return map;
     }
+
+    /// <summary>
+    /// Reescribe un <c>ORDER BY</c> (uno o varios términos separados por coma, cada uno
+    /// "columna [ASC|DESC]") sustituyendo cada referencia de columna por su alias de salida
+    /// cuando existe una coincidencia en <see cref="BuildRawExpressionToAliasMap"/>. Un término
+    /// sin coincidencia se deja tal cual (caso ya válido cuando no usa alias de tabla).
+    /// </summary>
+    private string ResolveOrderByForDerivedTable(string orderByExpression)
+    {
+        var aliasMap = BuildRawExpressionToAliasMap();
+
+        var resolvedTerms = orderByExpression.Split(',').Select(term =>
+        {
+            var trimmed = term.Trim();
+            var lastSpace = trimmed.LastIndexOf(' ');
+
+            string columnPart;
+            string directionPart;
+
+            if (lastSpace >= 0 &&
+                (trimmed[(lastSpace + 1)..].Equals("ASC", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed[(lastSpace + 1)..].Equals("DESC", StringComparison.OrdinalIgnoreCase)))
+            {
+                columnPart = trimmed[..lastSpace].Trim();
+                directionPart = $" {trimmed[(lastSpace + 1)..]}";
+            }
+            else
+            {
+                columnPart = trimmed;
+                directionPart = string.Empty;
+            }
+
+            var resolvedColumn = aliasMap.TryGetValue(columnPart, out var alias) ? alias : columnPart;
+            return $"{resolvedColumn}{directionPart}";
+        });
+
+        return string.Join(", ", resolvedTerms);
+    }
+
+    /// <summary>
+    /// Orden de presentación para <see cref="GetRecentAsync"/>: el mismo <see cref="ReadRepositoryConfiguration.DefaultOrderBy"/>
+    /// que ya usan <see cref="GetPagedReadModelsAsync"/> y <see cref="SearchForAutocompleteAsync"/>, reescrito para
+    /// funcionar sobre la tabla derivada que envuelve la selección por recencia.
+    /// </summary>
+    private string GetRecentPresentationOrderBy() =>
+        $"ORDER BY {ResolveOrderByForDerivedTable(GetDefaultOrderByExpression())}";
 
     private Dictionary<string, string> GetSortableColumns()
     {
@@ -365,16 +439,21 @@ public abstract class AbsReadRepository<T, TReadModel, TId> : IReadRepository<T,
         parameters.Add("usuarioId", usuarioId);
         parameters.Add("limit", limit);
 
-        var orderByColumn = $"{tablePrefix}fecha_creacion";
+        var recencyOrderByColumn = $"{tablePrefix}fecha_creacion";
 
-        var sql = $"{baseQuery}\nWHERE {userIdColumn} = @usuarioId";
+        // Selección: los N elementos más recientes del usuario (criterio sin cambios).
+        var innerSql = $"{baseQuery}\nWHERE {userIdColumn} = @usuarioId";
 
         if (extraFilters != null)
         {
-            sql += BuildDynamicFilters(extraFilters, parameters);
+            innerSql += BuildDynamicFilters(extraFilters, parameters);
         }
 
-        sql += $"\nORDER BY {orderByColumn} DESC\nLIMIT @limit";
+        innerSql += $"\nORDER BY {recencyOrderByColumn} DESC\nLIMIT @limit";
+
+        // Presentación: el conjunto ya seleccionado se devuelve en el orden por defecto
+        // del repositorio (normalmente alfabético), no en el de recencia usado para seleccionarlo.
+        var sql = $"SELECT * FROM (\n{innerSql}\n) AS recientes\n{GetRecentPresentationOrderBy()}";
 
         return await connection.QueryAsync<TReadModel>(
             new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
