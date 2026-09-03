@@ -72,9 +72,14 @@ public sealed class TestDbContext : KernelDbContext
             b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
         });
 
-        // GastoEntity solo se usa en los tests de Dapper, pero el escaneo por convención
-        // de KernelDbContext la registra igualmente (vive en este mismo assembly)
+        // GastoEntity/ProductoEntity solo se usan en los tests de Dapper, pero el escaneo
+        // por convención de KernelDbContext las registra igualmente (viven en este mismo assembly)
         modelBuilder.Entity<MySql.GastoEntity>(b =>
+        {
+            b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
+        });
+
+        modelBuilder.Entity<MySql.ProductoEntity>(b =>
         {
             b.Property(e => e.Id).HasConversion(id => id.Value, value => PedidoId.CreateFromDatabase(value));
         });
